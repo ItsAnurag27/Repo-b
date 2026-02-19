@@ -1,4 +1,4 @@
-name: Generate Root README from values.yaml
+name: Generate Root README from Repo A values.yaml
 
 on:
   workflow_dispatch:
@@ -11,70 +11,81 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout repository
+      # 1️⃣ Checkout Repo B (Target Repo)
+      - name: Checkout Repo B
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # 2️⃣ Checkout Repo A (Source Repo)
+      - name: Checkout Repo A
+        uses: actions/checkout@v4
+        with:
+          repository: ItsAnurag27/repo-a   # 🔁 CHANGE THIS
+          path: repo-a
+          token: ${{ secrets.PAT_TOKEN }}
+
+      # 3️⃣ Install helm-docs (fixed version to avoid CI mismatch)
       - name: Install helm-docs
-        shell: bash
         run: |
           set -euo pipefail
-          curl -L https://github.com/norwoodj/helm-docs/releases/download/v1.11.0/helm-docs_1.11.0_Linux_x86_64.tar.gz | tar -xz
+          curl -L https://github.com/norwoodj/helm-docs/releases/download/v1.11.0/helm-docs_1.11.0_Linux_x86_64.tar.gz \
+          | tar -xz
           sudo mv helm-docs /usr/local/bin/
           helm-docs --version
 
-      - name: Generate README.md at repo root
-        shell: bash
+      # 4️⃣ Generate README from Repo A values.yaml
+      - name: Generate README.md
         run: |
           set -euo pipefail
-          echo "Full repository structure:"
-          ls -R
-          SOURCE_VALUES="./my-chart/values.yaml"
 
-          echo "PWD: $(pwd)"
-          echo "Repo root listing:"
+          echo "Working directory: $(pwd)"
+          echo "Files in repo root:"
           ls -la
-          echo "Chart listing:"
-          ls -la my-chart || true
+
+          SOURCE_VALUES="repo-a/my-chart/values.yaml"  # 🔁 Adjust if inside subfolder
 
           if [[ ! -f "$SOURCE_VALUES" ]]; then
-            echo "ERROR: missing $SOURCE_VALUES"
+            echo "ERROR: Cannot find $SOURCE_VALUES"
             exit 1
           fi
 
+          # Create temporary Helm chart structure
           TMP_ROOT="$(mktemp -d)"
-          TMP_CHART="$TMP_ROOT/my-chart"
+          TMP_CHART="$TMP_ROOT/temp-chart"
           mkdir -p "$TMP_CHART"
 
-          cp -v "$SOURCE_VALUES" "$TMP_CHART/values.yaml"
+          # Copy values.yaml from Repo A
+          cp "$SOURCE_VALUES" "$TMP_CHART/values.yaml"
 
-          # helm-docs expects a Helm chart structure; create minimal Chart.yaml in temp.
-          printf '%s\n' \
-            'apiVersion: v2' \
-            'name: my-chart' \
-            'description: Temporary chart for helm-docs generation (runner only)' \
-            'type: application' \
-            'version: 0.1.0' \
-            'appVersion: "0.1.0"' \
-            > "$TMP_CHART/Chart.yaml"
+          # Create minimal Chart.yaml (required by helm-docs)
+          cat <<EOF > "$TMP_CHART/Chart.yaml"
+apiVersion: v2
+name: temp-chart
+description: Temporary chart for README generation
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+EOF
 
+          # Run helm-docs
           helm-docs -c "$TMP_CHART"
 
           if [[ ! -f "$TMP_CHART/README.md" ]]; then
-            echo "ERROR: helm-docs did not produce README.md"
+            echo "ERROR: helm-docs failed to generate README.md"
             exit 1
           fi
 
-          cp -v "$TMP_CHART/README.md" "README.md"
+          # Replace root README.md
+          cp "$TMP_CHART/README.md" "./README.md"
 
+      # 5️⃣ Commit ONLY if README changed
       - name: Commit and push changes
-        shell: bash
         run: |
           set -euo pipefail
 
           if git diff --quiet; then
-            echo "No changes to commit."
+            echo "No changes detected."
             exit 0
           fi
 
@@ -82,5 +93,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add README.md
-          git commit -m "docs: generate README from my-chart values"
+          git commit -m "docs: generate README from Repo A values.yaml"
           git push
