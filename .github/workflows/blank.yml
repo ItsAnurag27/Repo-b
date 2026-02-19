@@ -28,7 +28,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
+          echo "Full repository structure:"
+          ls -R
           SOURCE_VALUES="./my-chart/values.yaml"
 
           echo "PWD: $(pwd)"
