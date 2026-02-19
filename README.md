@@ -8,6 +8,14 @@ Temporary chart for README generation
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| ha-proxy.controller.image.repository | string | `"busybox"` |  |
+| ha-proxy.controller.image.tag | string | `"1.36"` |  |
+| ha-proxy.controller.replicas | int | `2` |  |
+| ha-proxy.controller.resources.limits.cpu | string | `"200m"` |  |
+| ha-proxy.controller.resources.limits.memory | string | `"256Mi"` |  |
+| ha-proxy.controller.resources.requests.cpu | string | `"100m"` |  |
+| ha-proxy.controller.resources.requests.memory | string | `"128Mi"` |  |
+| ha-proxy.enabled | bool | `true` |  |
 | ha.controller.image.repository | string | `"busybox"` |  |
 | ha.controller.image.tag | string | `"1.36"` |  |
 | ha.controller.replicas | int | `2` |  |
