@@ -34,7 +34,7 @@ jobs:
         run: |
           set -e
 
-          SOURCE_VALUES="repo-a/values.yaml"  # adjust if needed
+          SOURCE_VALUES="repo-a/my-chart/values.yaml"  # adjust if needed
 
           if [ ! -f "$SOURCE_VALUES" ]; then
             echo "ERROR: Cannot find $SOURCE_VALUES"
