@@ -1,0 +1,44 @@
+name: Update Nexus README from Repo A Values
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write   # Required to push changes
+
+    steps:
+      # 1️⃣ Checkout Repo B (Target Repo)
+      - name: Checkout Target (Repo B)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2️⃣ Checkout Repo A (Source Repo)
+      - name: Checkout Source (Repo A)
+        uses: actions/checkout@v4
+        with:
+          repository: ItsAnurag27/repo-a
+          path: repo-a 
+          token: ${{ secrets.PAT_TOKEN }}
+
+      # 3️⃣ Install helm-docs (match your CI version!)
+      - name: Install helm-docs
+        run: |
+          curl -L https://github.com/norwoodj/helm-docs/releases/download/v1.11.0/helm-docs_1.11.0_Linux_x86_64.tar.gz \
+          | tar -xz
+          sudo mv helm-docs /usr/local/bin/
+          helm-docs --version
+
+      # 4️⃣ Generate README using Repo A values
+      - name: Generate README only
+        run: |
+          set -e
+
+          CHART_PATH="my-chart"
+
+          # Backup original values.yaml
+          cp $CHART_PATH/values.yaml $CHART_PATH/valu
