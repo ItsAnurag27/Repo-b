@@ -19,7 +19,7 @@ jobs:
       - name: Checkout Repo A
         uses: actions/checkout@v4
         with:
-          repository: owner/repo-a   # CHANGE THIS
+          repository: ItsAnurag27/repo-a   # CHANGE THIS
           path: repo-a
           token: ${{ secrets.PAT_TOKEN }}
 
