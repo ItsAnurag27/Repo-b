@@ -49,7 +49,10 @@ jobs:
             echo "ERROR: missing $CHART_PATH/values.yaml"
             exit 1
           fi
-
+          echo "CHART_PATH=$CHART_PATH"
+          ls -la repo-a || true
+          ls -la "$CHART_PATH" || true
+          find . -maxdepth 3 -name values.yaml -print
           # (Optional) backup Repo A values.yaml
           cp -v "$CHART_PATH/values.yaml" "$CHART_PATH/values.yaml.bak"
 
@@ -62,7 +65,7 @@ jobs:
           fi
 
           # Copy generated README into Repo B (choose ONE destination)
-
+          
           # Option A: overwrite Repo B root README.md
           # cp -v "$CHART_PATH/README.md" "README.md"
 
