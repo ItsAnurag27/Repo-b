@@ -49,7 +49,6 @@ jobs:
 
           echo "apiVersion: v2" > "$TMP_CHART/Chart.yaml"
           echo "name: temp-chart" >> "$TMP_CHART/Chart.yaml"
-          echo "description: Temporary chart for README generation" >> "$TMP_CHART/Chart.yaml"
           echo "type: application" >> "$TMP_CHART/Chart.yaml"
           echo "version: 0.1.0" >> "$TMP_CHART/Chart.yaml"
           echo "appVersion: 0.1.0" >> "$TMP_CHART/Chart.yaml"
