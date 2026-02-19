@@ -11,78 +11,56 @@ jobs:
       contents: write
 
     steps:
-      # 1️⃣ Checkout Repo B (Target Repo)
       - name: Checkout Repo B
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2️⃣ Checkout Repo A (Source Repo)
       - name: Checkout Repo A
         uses: actions/checkout@v4
         with:
-          repository: ItsAnurag27/repo-a   # 🔁 CHANGE THIS
+          repository: owner/repo-a   # CHANGE THIS
           path: repo-a
           token: ${{ secrets.PAT_TOKEN }}
 
-      # 3️⃣ Install helm-docs (fixed version to avoid CI mismatch)
       - name: Install helm-docs
         run: |
-          set -euo pipefail
-          curl -L https://github.com/norwoodj/helm-docs/releases/download/v1.11.0/helm-docs_1.11.0_Linux_x86_64.tar.gz \
-          | tar -xz
+          set -e
+          curl -L https://github.com/norwoodj/helm-docs/releases/download/v1.11.0/helm-docs_1.11.0_Linux_x86_64.tar.gz | tar -xz
           sudo mv helm-docs /usr/local/bin/
           helm-docs --version
 
-      # 4️⃣ Generate README from Repo A values.yaml
       - name: Generate README.md
         run: |
-          set -euo pipefail
+          set -e
 
-          echo "Working directory: $(pwd)"
-          echo "Files in repo root:"
-          ls -la
+          SOURCE_VALUES="repo-a/values.yaml"  # adjust if needed
 
-          SOURCE_VALUES="repo-a/my-chart/values.yaml"  # 🔁 Adjust if inside subfolder
-
-          if [[ ! -f "$SOURCE_VALUES" ]]; then
+          if [ ! -f "$SOURCE_VALUES" ]; then
             echo "ERROR: Cannot find $SOURCE_VALUES"
             exit 1
           fi
 
-          # Create temporary Helm chart structure
-          TMP_ROOT="$(mktemp -d)"
+          TMP_ROOT=$(mktemp -d)
           TMP_CHART="$TMP_ROOT/temp-chart"
           mkdir -p "$TMP_CHART"
 
-          # Copy values.yaml from Repo A
           cp "$SOURCE_VALUES" "$TMP_CHART/values.yaml"
 
-          # Create minimal Chart.yaml (required by helm-docs)
-          cat <<EOF > "$TMP_CHART/Chart.yaml"
-apiVersion: v2
-name: temp-chart
-description: Temporary chart for README generation
-type: application
-version: 0.1.0
-appVersion: "0.1.0"
-EOF
+          echo "apiVersion: v2" > "$TMP_CHART/Chart.yaml"
+          echo "name: temp-chart" >> "$TMP_CHART/Chart.yaml"
+          echo "description: Temporary chart for README generation" >> "$TMP_CHART/Chart.yaml"
+          echo "type: application" >> "$TMP_CHART/Chart.yaml"
+          echo "version: 0.1.0" >> "$TMP_CHART/Chart.yaml"
+          echo "appVersion: 0.1.0" >> "$TMP_CHART/Chart.yaml"
 
-          # Run helm-docs
           helm-docs -c "$TMP_CHART"
 
-          if [[ ! -f "$TMP_CHART/README.md" ]]; then
-            echo "ERROR: helm-docs failed to generate README.md"
-            exit 1
-          fi
-
-          # Replace root README.md
           cp "$TMP_CHART/README.md" "./README.md"
 
-      # 5️⃣ Commit ONLY if README changed
       - name: Commit and push changes
         run: |
-          set -euo pipefail
+          set -e
 
           if git diff --quiet; then
             echo "No changes detected."
