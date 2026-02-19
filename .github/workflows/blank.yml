@@ -10,13 +10,13 @@ jobs:
       contents: write
 
     steps:
-      # Checkout Repo B (this repo) so we can commit a README update here
+      # 1️⃣ Checkout Repo B (this repo) so we can commit changes here
       - name: Checkout Target (Repo B)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Checkout Repo A into ./repo-a
+      # 2️⃣ Checkout Repo A (source repo) into ./repo-a
       - name: Checkout Source (Repo A)
         uses: actions/checkout@v4
         with:
@@ -24,6 +24,7 @@ jobs:
           path: repo-a
           token: ${{ secrets.PAT_TOKEN }}
 
+      # 3️⃣ Install helm-docs
       - name: Install helm-docs
         shell: bash
         run: |
@@ -32,7 +33,7 @@ jobs:
           sudo mv helm-docs /usr/local/bin/
           helm-docs --version
 
-      # Generate README using Repo A chart + Repo A values.yaml
+      # 4️⃣ Generate README from Repo A chart, then copy into Repo B
       - name: Generate README from Repo A chart
         shell: bash
         run: |
@@ -40,21 +41,36 @@ jobs:
 
           CHART_PATH="repo-a/my-chart"
 
+          echo "PWD: $(pwd)"
+          echo "Repo A chart listing:"
+          ls -la "$CHART_PATH"
+
           if [[ ! -f "$CHART_PATH/values.yaml" ]]; then
             echo "ERROR: missing $CHART_PATH/values.yaml"
             exit 1
           fi
 
-          # Backup Repo A values.yaml (optional)
+          # (Optional) backup Repo A values.yaml
           cp -v "$CHART_PATH/values.yaml" "$CHART_PATH/values.yaml.bak"
 
-          # Generate README.md inside repo-a/my-chart
+          # Generate README.md inside Repo A chart folder
           helm-docs -c "$CHART_PATH"
 
-          # Copy the generated README into Repo B (choose destination)
+          if [[ ! -f "$CHART_PATH/README.md" ]]; then
+            echo "ERROR: helm-docs did not produce $CHART_PATH/README.md"
+            exit 1
+          fi
+
+          # Copy generated README into Repo B (choose ONE destination)
+
+          # Option A: overwrite Repo B root README.md
+          # cp -v "$CHART_PATH/README.md" "README.md"
+
+          # Option B: write into docs/
           mkdir -p docs
           cp -v "$CHART_PATH/README.md" "docs/my-chart-README.md"
 
+      # 5️⃣ Commit + push if changed
       - name: Commit and push changes
         shell: bash
         run: |
@@ -69,5 +85,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add -A
-          git commit -m "docs: update README from repo-a values"
+          git commit -m "docs: update README from repo-a/my-chart values"
           git push
