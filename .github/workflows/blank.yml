@@ -1,30 +1,21 @@
-name: Update Nexus README from Repo A Values
+name: Generate Root README from values.yaml
 
 on:
   workflow_dispatch:
 
 jobs:
-  update-docs:
+  generate-readme:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
 
     steps:
-      # 1️⃣ Checkout Repo B (target repo where we will commit README)
-      - name: Checkout Target (Repo B)
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2️⃣ Checkout Repo A (source repo) into ./repo-a
-      - name: Checkout Source (Repo A)
-        uses: actions/checkout@v4
-        with:
-          repository: ItsAnurag27/repo-a
-          path: repo-a
-          token: ${{ secrets.PAT_TOKEN }}
-
-      # 3️⃣ Install helm-docs
       - name: Install helm-docs
         shell: bash
         run: |
@@ -33,43 +24,40 @@ jobs:
           sudo mv helm-docs /usr/local/bin/
           helm-docs --version
 
-      # 4️⃣ Copy Repo A values.yaml into runner temp chart + generate README
-      - name: Generate README from Repo A values.yaml (runner temp)
+      - name: Generate README.md at repo root
         shell: bash
         run: |
           set -euo pipefail
 
-          SOURCE_VALUES="repo-a/my-chart/values.yaml"
+          SOURCE_VALUES="my-chart/values.yaml"
+
+          echo "PWD: $(pwd)"
+          echo "Repo root listing:"
+          ls -la
+          echo "Chart listing:"
+          ls -la my-chart || true
 
           if [[ ! -f "$SOURCE_VALUES" ]]; then
-            echo "ERROR: missing source values file: $SOURCE_VALUES"
-            echo "Repo A listing:"
-            ls -la repo-a || true
-            ls -la repo-a/my-chart || true
+            echo "ERROR: missing $SOURCE_VALUES"
             exit 1
           fi
 
-          # Create a temp chart folder on the runner
           TMP_ROOT="$(mktemp -d)"
           TMP_CHART="$TMP_ROOT/my-chart"
           mkdir -p "$TMP_CHART"
 
-          # Copy values.yaml from Repo A into the temp chart
           cp -v "$SOURCE_VALUES" "$TMP_CHART/values.yaml"
 
-          # helm-docs requires Chart.yaml; create a minimal one if Repo A doesn't have it
-          if [[ ! -f "$TMP_CHART/Chart.yaml" ]]; then
-            cat > "$TMP_CHART/Chart.yaml" <<'EOF'
-apiVersion: v2
-name: my-chart
-description: Temporary chart for helm-docs generation (runner only)
-type: application
-version: 0.1.0
-appVersion: "0.1.0"
-EOF
-          fi
+          # helm-docs expects a Helm chart structure; create minimal Chart.yaml in temp.
+          printf '%s\n' \
+            'apiVersion: v2' \
+            'name: my-chart' \
+            'description: Temporary chart for helm-docs generation (runner only)' \
+            'type: application' \
+            'version: 0.1.0' \
+            'appVersion: "0.1.0"' \
+            > "$TMP_CHART/Chart.yaml"
 
-          # Generate README.md in the temp chart folder
           helm-docs -c "$TMP_CHART"
 
           if [[ ! -f "$TMP_CHART/README.md" ]]; then
@@ -77,11 +65,8 @@ EOF
             exit 1
           fi
 
-          # Copy generated README into Repo B (choose your destination)
-          mkdir -p docs
-          cp -v "$TMP_CHART/README.md" "docs/my-chart-README.md"
+          cp -v "$TMP_CHART/README.md" "README.md"
 
-      # 5️⃣ Commit + push if changed
       - name: Commit and push changes
         shell: bash
         run: |
@@ -95,6 +80,6 @@ EOF
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add -A
-          git commit -m "docs: update README from repo-a values.yaml"
+          git add README.md
+          git commit -m "docs: generate README from my-chart values"
           git push
