@@ -6,27 +6,24 @@ on:
 jobs:
   update-docs:
     runs-on: ubuntu-latest
-
     permissions:
       contents: write
 
     steps:
-      # 1️⃣ Checkout Repo B (target repo where README will be updated)
+      # Checkout Repo B (this repo) so we can commit a README update here
       - name: Checkout Target (Repo B)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2️⃣ Checkout Repo A (source repo) into ./repo-a
+      # Checkout Repo A into ./repo-a
       - name: Checkout Source (Repo A)
         uses: actions/checkout@v4
         with:
           repository: ItsAnurag27/repo-a
           path: repo-a
-          # For public repos, GITHUB_TOKEN is usually fine; keep PAT_TOKEN if you need cross-repo access.
-          token: ${{ secrets.PAT_TOKEN || github.token }}
+          token: ${{ secrets.PAT_TOKEN }}
 
-      # 3️⃣ Install helm-docs
       - name: Install helm-docs
         shell: bash
         run: |
@@ -35,50 +32,29 @@ jobs:
           sudo mv helm-docs /usr/local/bin/
           helm-docs --version
 
-      # 4️⃣ Generate README for Repo B chart using Repo A values.yaml
-      - name: Generate README
+      # Generate README using Repo A chart + Repo A values.yaml
+      - name: Generate README from Repo A chart
         shell: bash
         run: |
           set -euo pipefail
 
-          # Repo B chart location (CHANGE THIS if your chart in Repo B is elsewhere)
-          TARGET_CHART_PATH="my-chart"
+          CHART_PATH="repo-a/my-chart"
 
-          # Repo A chart location (based on your screenshot: repo-a/my-chart/values.yaml)
-          SOURCE_CHART_PATH="repo-a/my-chart"
-
-          echo "PWD: $(pwd)"
-          echo "Root:"
-          ls -la
-
-          echo "Target chart folder:"
-          ls -la "$TARGET_CHART_PATH" || true
-
-          echo "Source chart folder:"
-          ls -la "$SOURCE_CHART_PATH" || true
-
-          if [[ ! -f "$SOURCE_CHART_PATH/values.yaml" ]]; then
-            echo "ERROR: missing source values.yaml at $SOURCE_CHART_PATH/values.yaml"
+          if [[ ! -f "$CHART_PATH/values.yaml" ]]; then
+            echo "ERROR: missing $CHART_PATH/values.yaml"
             exit 1
           fi
 
-          if [[ ! -f "$TARGET_CHART_PATH/values.yaml" ]]; then
-            echo "ERROR: missing target values.yaml at $TARGET_CHART_PATH/values.yaml"
-            echo "Fix: set TARGET_CHART_PATH to where the chart exists in Repo B."
-            exit 1
-          fi
+          # Backup Repo A values.yaml (optional)
+          cp -v "$CHART_PATH/values.yaml" "$CHART_PATH/values.yaml.bak"
 
-          # Backup + always restore Repo B values.yaml (so you don't commit values changes)
-          cp -v "$TARGET_CHART_PATH/values.yaml" "$TARGET_CHART_PATH/values.yaml.bak"
-          trap 'mv -f "$TARGET_CHART_PATH/values.yaml.bak" "$TARGET_CHART_PATH/values.yaml"' EXIT
+          # Generate README.md inside repo-a/my-chart
+          helm-docs -c "$CHART_PATH"
 
-          # Temporarily replace Repo B values.yaml with Repo A values.yaml for doc generation
-          cp -v "$SOURCE_CHART_PATH/values.yaml" "$TARGET_CHART_PATH/values.yaml"
+          # Copy the generated README into Repo B (choose destination)
+          mkdir -p docs
+          cp -v "$CHART_PATH/README.md" "docs/my-chart-README.md"
 
-          # Generate README.md in the target chart
-          helm-docs -c "$TARGET_CHART_PATH"
-
-      # 5️⃣ Commit + push if README changed
       - name: Commit and push changes
         shell: bash
         run: |
@@ -93,5 +69,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add -A
-          git commit -m "docs: update chart README from Repo A values"
+          git commit -m "docs: update README from repo-a values"
           git push
